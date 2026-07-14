@@ -12,13 +12,14 @@ function normalizedCurve(points = []) {
 }
 
 function sparkline(points) {
-  const c = normalizedCurve(points), w = 320, h = 128, pad = 6;
+  const c = normalizedCurve(points), w = 320, h = 92, pad = 7;
   if (c.values.length < 2) return "";
   const low = curveDomain?.min ?? c.min, high = curveDomain?.max ?? c.max, range = high - low || 1;
   const xy = (v, i) => `${pad + i * (w - pad * 2) / (c.values.length - 1)},${h - pad - (v - low) * (h - pad * 2) / range}`;
   const line = c.values.map(xy).join(" ");
+  const baseY = h - pad - (100 - low) * (h - pad * 2) / range;
   const cls = c.change > .05 ? "up" : c.change < -.05 ? "down" : "flat-line";
-  return `<svg class="card-curve ${cls}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${line}"/></svg><span class="curve-change ${cls}">${c.change > 0 ? "+" : ""}${c.change.toFixed(1)}%</span>`;
+  return `<figure class="mini-chart ${cls}"><figcaption><span>ASSET CURVE · BASE 100</span><b>${c.change > 0 ? "+" : ""}${c.change.toFixed(1)}%</b></figcaption><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-label="選手資產成長縮圖"><line x1="${pad}" y1="${baseY}" x2="${w-pad}" y2="${baseY}"/><polyline points="${line}"/></svg><footer><span>最低 <b>${c.min.toFixed(1)}</b></span><span>目前 <b>${(100+c.change).toFixed(1)}</b></span><span>最高 <b>${c.max.toFixed(1)}</b></span></footer></figure>`;
 }
 
 function render() {
@@ -27,7 +28,7 @@ function render() {
   curveDomain = {min: Math.min(100, ...curves.map(c => c.min)), max: Math.max(100, ...curves.map(c => c.max))};
   document.querySelector("#podium").innerHTML = shown.map(p => {
     const curve = details[p.player_id]?.equity_curve || [];
-    return `<a class="fighter ${p.style}" href="./player/?code=${encodeURIComponent(p.player_id)}&v=20260714e">${sparkline(curve)}<div class="fighter-content"><mark>#${String(p.rank).padStart(2,"0")}</mark><div class="rank-orb">${String(p.rank).padStart(2,"0")}</div><p>${p.style === "long" ? "LONG GAME" : "SPRINT"}</p><h2>${esc(p.alias)}</h2><small>${status(p.health)} · 歷史戰役 ${p.lifetime_trades}</small><dl><div><dt>近90日勝率</dt><dd>${Number(p.recent_win_rate_pct).toFixed(1)}%</dd></div><div><dt>近90日 ROI</dt><dd class="${p.recent_avg_roi_pct > 0 ? "gain" : p.recent_avg_roi_pct < 0 ? "loss" : "flat"}">${p.recent_avg_roi_pct > 0 ? "+" : ""}${Number(p.recent_avg_roi_pct).toFixed(1)}%</dd></div></dl><footer><span>${p.style === "long" ? "長線庫存選手" : "短線戰役選手"}</span><b>查看選手檔案 →</b></footer></div></a>`;
+    return `<a class="fighter ${p.style}" href="./player/?code=${encodeURIComponent(p.player_id)}&v=20260715a"><div class="fighter-content"><mark>#${String(p.rank).padStart(2,"0")}</mark><div class="rank-orb">${String(p.rank).padStart(2,"0")}</div><p>${p.style === "long" ? "LONG GAME" : "SPRINT"}</p><h2>${esc(p.alias)}</h2><small>${status(p.health)} · 歷史戰役 ${p.lifetime_trades}</small><dl><div><dt>近90日勝率</dt><dd>${Number(p.recent_win_rate_pct).toFixed(1)}%</dd></div><div><dt>近90日 ROI</dt><dd class="${p.recent_avg_roi_pct > 0 ? "gain" : p.recent_avg_roi_pct < 0 ? "loss" : "flat"}">${p.recent_avg_roi_pct > 0 ? "+" : ""}${Number(p.recent_avg_roi_pct).toFixed(1)}%</dd></div></dl>${sparkline(curve)}<footer><span>${p.style === "long" ? "長線庫存選手" : "短線戰役選手"}</span><b>查看選手檔案 →</b></footer></div></a>`;
   }).join("") || "<p class='loading'>此組目前沒有合格選手。</p>";
 }
 
