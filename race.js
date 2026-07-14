@@ -18,11 +18,13 @@ function sparkline(points) {
   const c = normalizedCurve(points), w = 320, h = 92, pad = 7;
   if (c.values.length < 2) return "";
   const low = c.min, high = c.max, range = high - low || 1;
-  const xy = (v, i) => `${pad + i * (w - pad * 2) / (c.values.length - 1)},${h - pad - (v - low) * (h - pad * 2) / range}`;
+  const point = (v, i) => ({x:pad + i * (w - pad * 2) / (c.values.length - 1), y:h - pad - (v - low) * (h - pad * 2) / range});
+  const xy = (v, i) => { const p = point(v, i); return `${p.x},${p.y}`; };
   const line = c.values.map(xy).join(" ");
   const baseY = h - pad - (100 - low) * (h - pad * 2) / range;
   const cls = c.change > .05 ? "up" : c.change < -.05 ? "down" : "flat-line";
-  return `<figure class="mini-chart ${cls}"><figcaption><span>ASSET CURVE · BASE 100</span><b>${c.change > 0 ? "+" : ""}${c.change.toFixed(1)}%</b></figcaption><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-label="選手資產成長縮圖"><line x1="${pad}" y1="${baseY}" x2="${w-pad}" y2="${baseY}"/><polyline points="${line}"/></svg><footer><span>最低 <b>${c.min.toFixed(1)}</b></span><span>目前 <b>${(100+c.change).toFixed(1)}</b></span><span>最高 <b>${c.max.toFixed(1)}</b></span></footer></figure>`;
+  const extreme = (kind, value, index) => { const p = point(value, index), boxW = 54, boxH = 15, x = Math.max(2, Math.min(w-boxW-2, p.x-boxW/2)), y = kind === "max" ? Math.max(2,p.y-boxH-5) : Math.min(h-boxH-2,p.y+5); return `<g class="extreme ${kind}"><circle cx="${p.x}" cy="${p.y}" r="3.5"/><rect x="${x}" y="${y}" width="${boxW}" height="${boxH}" rx="3"/><text x="${x+boxW/2}" y="${y+10.5}" text-anchor="middle">${value.toFixed(1)}</text></g>`; };
+  return `<figure class="mini-chart ${cls}"><figcaption><span>ASSET CURVE · BASE 100</span><b>${c.change > 0 ? "+" : ""}${c.change.toFixed(1)}%</b></figcaption><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-label="選手資產成長縮圖"><line x1="${pad}" y1="${baseY}" x2="${w-pad}" y2="${baseY}"/><polyline points="${line}"/>${extreme("max",c.max,c.values.indexOf(c.max))}${extreme("min",c.min,c.values.indexOf(c.min))}</svg><footer><span>最低 <b>${c.min.toFixed(1)}</b></span><span>目前 <b>${(100+c.change).toFixed(1)}</b></span><span>最高 <b>${c.max.toFixed(1)}</b></span></footer></figure>`;
 }
 
 function render() {

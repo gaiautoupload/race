@@ -23,11 +23,14 @@ function chart(points) {
   const c = normalized(points), w = 900, h = 260, px = 42, py = 24;
   if (c.points.length < 2) return `<div class="empty chart-empty">尚無累計曲線資料</div>`;
   const low = Math.min(c.min, 100), high = Math.max(c.max, 100), range = high - low || 1;
-  const xy = (v, i) => `${px + i * (w - px * 2) / (c.points.length - 1)},${h - py - (v - low) * (h - py * 2) / range}`;
+  const point = (v, i) => ({x:px + i * (w - px * 2) / (c.points.length - 1), y:h - py - (v - low) * (h - py * 2) / range});
+  const xy = (v, i) => { const p = point(v, i); return `${p.x},${p.y}`; };
   const baseY = h - py - (100 - low) * (h - py * 2) / range;
   const line = c.points.map((x, i) => xy(x.value, i)).join(" ");
   const cls = c.change > .05 ? "up" : c.change < -.05 ? "down" : "flat-line";
-  return `<div class="chart-summary"><span>起始基準 <b>100.0</b></span><span>最高 <b>${c.max.toFixed(1)}</b></span><span>最低 <b>${c.min.toFixed(1)}</b></span><span>目前 <b class="${cls}">${c.last.toFixed(1)}（${c.change > 0 ? "+" : ""}${c.change.toFixed(1)}%）</b></span></div><svg class="equity-chart ${cls}" viewBox="0 0 ${w} ${h}" role="img" aria-label="以起始資產為100的累計資產曲線"><line x1="${px}" y1="${baseY}" x2="${w-px}" y2="${baseY}" class="baseline"/><text x="${px+4}" y="${baseY-7}" class="base-label">基準 100</text><polyline points="${line}"/><circle cx="${w-px}" cy="${xy(c.last,c.points.length-1).split(",")[1]}" r="5"/><text x="${px}" y="${h-4}">${esc(c.points[0].date)}</text><text x="${w-px}" y="${h-4}" text-anchor="end">${esc(c.points.at(-1).date)}</text></svg><div class="chart-caption">以第一個有效資產值設為 100；曲線已包含持股市值、累計買進與累計賣出。</div>`;
+  const extreme = (kind, value, index) => { const p = point(value,index), boxW = 86, boxH = 24, x = Math.max(4,Math.min(w-boxW-4,p.x-boxW/2)), y = kind === "max" ? Math.max(4,p.y-boxH-8) : Math.min(h-boxH-18,p.y+8); return `<g class="extreme ${kind}"><circle cx="${p.x}" cy="${p.y}" r="6"/><rect x="${x}" y="${y}" width="${boxW}" height="${boxH}" rx="5"/><text x="${x+boxW/2}" y="${y+16}" text-anchor="middle">${kind === "max" ? "最高 " : "最低 "}${value.toFixed(1)}</text></g>`; };
+  const maxIndex = c.points.findIndex(x=>x.value===c.max), minIndex = c.points.findIndex(x=>x.value===c.min);
+  return `<div class="chart-summary"><span>起始基準 <b>100.0</b></span><span>最高 <b>${c.max.toFixed(1)}</b></span><span>最低 <b>${c.min.toFixed(1)}</b></span><span>目前 <b class="${cls}">${c.last.toFixed(1)}（${c.change > 0 ? "+" : ""}${c.change.toFixed(1)}%）</b></span></div><svg class="equity-chart ${cls}" viewBox="0 0 ${w} ${h}" role="img" aria-label="以起始資產為100的累計資產曲線"><line x1="${px}" y1="${baseY}" x2="${w-px}" y2="${baseY}" class="baseline"/><text x="${px+4}" y="${baseY-7}" class="base-label">基準 100</text><polyline points="${line}"/>${extreme("max",c.max,maxIndex)}${extreme("min",c.min,minIndex)}<circle class="current-point" cx="${w-px}" cy="${point(c.last,c.points.length-1).y}" r="5"/><text x="${px}" y="${h-4}">${esc(c.points[0].date)}</text><text x="${w-px}" y="${h-4}" text-anchor="end">${esc(c.points.at(-1).date)}</text></svg><div class="chart-caption">以第一個有效資產值設為 100；曲線已包含持股市值、累計買進與累計賣出。</div>`;
 }
 
 const code = new URLSearchParams(location.search).get("code");
