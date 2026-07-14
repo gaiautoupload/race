@@ -1,20 +1,23 @@
 const esc = v => String(v ?? "").replace(/[&<>\"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
 const status = v => v === "active" ? "仍在場上" : v === "retired_or_degraded" ? "已降級" : "觀察中";
-let players = [], details = {}, tab = "all", curveDomain = null;
+let players = [], details = {}, tab = "all";
 
 function normalizedCurve(points = []) {
-  const usable = points.filter(x => Number.isFinite(Number(x.value)));
+  const usable = points.filter(x => Number.isFinite(Number(x.value)) && Number.isFinite(Number(x.market_value)));
   if (!usable.length) return { values: [], change: 0, min: 100, max: 100 };
-  const baselinePoint = usable.find(x => Number(x.value) !== 0) || usable[0];
-  const baseline = Math.abs(Number(baselinePoint.value)) || 1;
-  const values = usable.map(x => 100 + (Number(x.value) - Number(baselinePoint.value)) / baseline * 100);
+  const values = [100];
+  for (let i = 1; i < usable.length; i++) {
+    const exposure = Math.abs(Number(usable[i - 1].market_value)) || Math.abs(Number(usable[i].market_value)) || 1;
+    const dailyReturn = Math.max(-.5, Math.min(.5, (Number(usable[i].value) - Number(usable[i - 1].value)) / exposure));
+    values.push(values.at(-1) * (1 + dailyReturn));
+  }
   return { values, change: values.at(-1) - 100, min: Math.min(...values), max: Math.max(...values) };
 }
 
 function sparkline(points) {
   const c = normalizedCurve(points), w = 320, h = 92, pad = 7;
   if (c.values.length < 2) return "";
-  const low = curveDomain?.min ?? c.min, high = curveDomain?.max ?? c.max, range = high - low || 1;
+  const low = c.min, high = c.max, range = high - low || 1;
   const xy = (v, i) => `${pad + i * (w - pad * 2) / (c.values.length - 1)},${h - pad - (v - low) * (h - pad * 2) / range}`;
   const line = c.values.map(xy).join(" ");
   const baseY = h - pad - (100 - low) * (h - pad * 2) / range;
@@ -24,8 +27,6 @@ function sparkline(points) {
 
 function render() {
   const shown = players.filter(p => tab === "all" || p.style === tab);
-  const curves = shown.map(p => normalizedCurve(details[p.player_id]?.equity_curve || []));
-  curveDomain = {min: Math.min(100, ...curves.map(c => c.min)), max: Math.max(100, ...curves.map(c => c.max))};
   document.querySelector("#podium").innerHTML = shown.map(p => {
     const curve = details[p.player_id]?.equity_curve || [];
     return `<a class="fighter ${p.style}" href="./player/?code=${encodeURIComponent(p.player_id)}&v=20260715a"><div class="fighter-content"><mark>#${String(p.rank).padStart(2,"0")}</mark><div class="rank-orb">${String(p.rank).padStart(2,"0")}</div><p>${p.style === "long" ? "LONG GAME" : "SPRINT"}</p><h2>${esc(p.alias)}</h2><small>${status(p.health)} · 歷史戰役 ${p.lifetime_trades}</small><dl><div><dt>近90日勝率</dt><dd>${Number(p.recent_win_rate_pct).toFixed(1)}%</dd></div><div><dt>近90日 ROI</dt><dd class="${p.recent_avg_roi_pct > 0 ? "gain" : p.recent_avg_roi_pct < 0 ? "loss" : "flat"}">${p.recent_avg_roi_pct > 0 ? "+" : ""}${Number(p.recent_avg_roi_pct).toFixed(1)}%</dd></div></dl>${sparkline(curve)}<footer><span>${p.style === "long" ? "長線庫存選手" : "短線戰役選手"}</span><b>查看選手檔案 →</b></footer></div></a>`;

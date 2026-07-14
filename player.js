@@ -8,11 +8,14 @@ const flowTable = (rows, side) => `<table class="flow-table"><thead><tr><th>#</t
 const spotlight = (title, rows, kind) => `<section class="spotlight ${kind}"><div><p>${kind === "buy" ? "TOP NET BUY · 大量掃貨" : "TOP NET SELL · 大量出貨"}</p><h2>${title}</h2></div>${rows.length ? `<div class="spot-items">${rows.slice(0, 3).map((x, i) => `<div><em>${i + 1}</em><b>${esc(x.stock_code)} ${esc(x.stock_name)}</b><span>${esc(x.amount_label)} · ${Number(x.lots).toLocaleString()} 張</span></div>`).join("")}</div>` : `<div class="empty">目前沒有大額紀錄</div>`}</section>`;
 
 function normalized(points = []) {
-  const usable = points.filter(x => Number.isFinite(Number(x.value)));
+  const usable = points.filter(x => Number.isFinite(Number(x.value)) && Number.isFinite(Number(x.market_value)));
   if (!usable.length) return {points:[], min:100, max:100, last:100, change:0};
-  const basePoint = usable.find(x => Number(x.value) !== 0) || usable[0];
-  const base = Math.abs(Number(basePoint.value)) || 1;
-  const values = usable.map(x => ({date:x.date, value:100 + (Number(x.value) - Number(basePoint.value)) / base * 100}));
+  const values = [{date:usable[0].date, value:100}];
+  for (let i = 1; i < usable.length; i++) {
+    const exposure = Math.abs(Number(usable[i - 1].market_value)) || Math.abs(Number(usable[i].market_value)) || 1;
+    const dailyReturn = Math.max(-.5, Math.min(.5, (Number(usable[i].value) - Number(usable[i - 1].value)) / exposure));
+    values.push({date:usable[i].date, value:values.at(-1).value * (1 + dailyReturn)});
+  }
   return {points:values, min:Math.min(...values.map(x=>x.value)), max:Math.max(...values.map(x=>x.value)), last:values.at(-1).value, change:values.at(-1).value - 100};
 }
 
@@ -34,4 +37,6 @@ fetch("../public/data/dashboard.json?v=20260714e", {cache:"no-store"}).then(r =>
   const t = p.today, f = p.five_days;
   document.querySelector("#asof").textContent = `行情日：${p.market_date || "—"} · 最近分點資料：${p.latest_flow_date}`;
   document.querySelector("#player").innerHTML = `<section class="player-hero"><a href="../">← 返回競技場</a><p>PLAYER DOSSIER</p><h1>${esc(p.alias)}</h1><span>匿名選手 · 單日／五日／歷史戰績</span><div>同一標的先將買賣互抵，再依淨買或淨賣歸類。</div></section><section class="spotlight-grid">${spotlight("推薦買入", t.recommended_buy || t.buys, "buy")}${spotlight("建議賣出", t.recommended_sell || t.sells, "sell")}</section><section class="period"><div class="period-head"><p>TODAY · ${esc(p.latest_flow_date)}</p><h2>今日戰績</h2></div>${stats(t.stats || {})}<div class="split"><section class="flow-card buy"><h3>單日淨買進排行</h3>${flowTable(t.buys, "buy")}</section><section class="flow-card sell"><h3>單日淨賣出排行</h3>${flowTable(t.sells, "sell")}</section></div></section><section class="period"><div class="period-head"><p>LAST 5 TRADING DAYS</p><h2>五日戰績</h2></div>${stats(f.stats || {})}<div class="split"><section class="flow-card buy"><h3>五日淨買進排行</h3>${flowTable(f.buys, "buy")}</section><section class="flow-card sell"><h3>五日淨賣出排行</h3>${flowTable(f.sells, "sell")}</section></div></section><section class="equity"><p>EQUITY CURVE · BASE 100</p><h2>資產成長曲線</h2>${chart(p.equity_curve)}</section><section class="holdings"><p>HISTORICAL INVENTORY · TOP 10</p><h2>歷史推估持股</h2><table><thead><tr><th>個股</th><th>最早買入</th><th>最新買入</th><th>推估張數</th><th>平均成本（萬／張）</th><th>最新價</th><th>推估報酬</th></tr></thead><tbody>${p.holdings.length ? p.holdings.map(x => `<tr><td>${esc(x.stock_code)} ${esc(x.stock_name)}${x.settlement ? `<small class="settled">${esc(x.settlement_note)}</small>` : ""}</td><td>${esc(x.first_buy_date || "—")}</td><td>${esc(x.latest_buy_date || "—")}</td><td>${Number(x.lots).toLocaleString()} 張</td><td>${Number(x.average_cost_wan_per_lot).toFixed(2)}</td><td>${Number(x.latest_price).toFixed(2)}</td><td class="${x.roi_pct > 0 ? "gain" : x.roi_pct < 0 ? "loss" : "flat"}">${x.roi_pct > 0 ? "+" : ""}${Number(x.roi_pct).toFixed(1)}%</td></tr>`).join("") : `<tr><td colspan="7">尚無可用的正向推估庫存。</td></tr>`}</tbody></table></section><section class="copy"><p>COPY-TRADING PLAYBOOK · RESEARCH ONLY</p><h2>如何設計跟單</h2><ol><li><b>進場觀察</b><span>${esc(p.copy_plan.entry)}</span></li><li><b>部位控制</b><span>${esc(p.copy_plan.sizing)}</span></li><li><b>退場紀律</b><span>${esc(p.copy_plan.exit)}</span></li></ol><footer>${esc(p.copy_plan.guardrail)}<br>${esc(d.notice)}</footer></section>`;
+  const curveCaption = document.querySelector(".chart-caption");
+  if (curveCaption) curveCaption.textContent = "以每日推估損益變動除以前一日持股市值後連乘，基準為 100；降低持續投入資金造成的假成長。";
 }).catch(() => document.querySelector("#player").textContent = "資料暫時無法載入。");
