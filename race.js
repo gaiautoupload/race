@@ -3,14 +3,9 @@ const status = v => v === "active" ? "仍在場上" : v === "retired_or_degraded
 let players = [], details = {}, tab = "all";
 
 function normalizedCurve(points = []) {
-  const usable = points.filter(x => Number.isFinite(Number(x.value)) && Number.isFinite(Number(x.market_value)));
+  const usable = points.filter(x => Number.isFinite(Number(x.return_index ?? x.value)));
   if (!usable.length) return { values: [], change: 0, min: 100, max: 100 };
-  const values = [100];
-  for (let i = 1; i < usable.length; i++) {
-    const exposure = Math.abs(Number(usable[i - 1].market_value)) || Math.abs(Number(usable[i].market_value)) || 1;
-    const dailyReturn = Math.max(-.5, Math.min(.5, (Number(usable[i].value) - Number(usable[i - 1].value)) / exposure));
-    values.push(values.at(-1) * (1 + dailyReturn));
-  }
+  const values = usable.map(x => Number(x.return_index ?? x.value));
   return { values, change: values.at(-1) - 100, min: Math.min(...values), max: Math.max(...values) };
 }
 
@@ -41,7 +36,7 @@ document.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click",
   render();
 }));
 
-fetch("./public/data/dashboard.json?v=20260714e", {cache:"no-store"}).then(r => r.json()).then(d => {
+fetch("./public/data/dashboard.json?v=20260715d", {cache:"no-store"}).then(r => r.json()).then(d => {
   players = d.leaderboard || [];
   details = d.players || {};
   document.querySelector("#asof").textContent = `行情日：${d.as_of} · 分點資料：${d.latest_flow_date}`;

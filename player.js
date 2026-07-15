@@ -8,14 +8,9 @@ const flowTable = (rows, side) => `<table class="flow-table"><thead><tr><th>#</t
 const spotlight = (title, rows, kind) => `<section class="spotlight ${kind}"><div><p>${kind === "buy" ? "TOP NET BUY · 大量掃貨" : "TOP NET SELL · 大量出貨"}</p><h2>${title}</h2></div>${rows.length ? `<div class="spot-items">${rows.slice(0, 3).map((x, i) => `<div><em>${i + 1}</em><b>${esc(x.stock_code)} ${esc(x.stock_name)}</b><span>${esc(x.amount_label)} · ${Number(x.lots).toLocaleString()} 張</span></div>`).join("")}</div>` : `<div class="empty">目前沒有大額紀錄</div>`}</section>`;
 
 function normalized(points = []) {
-  const usable = points.filter(x => Number.isFinite(Number(x.value)) && Number.isFinite(Number(x.market_value)));
+  const usable = points.filter(x => Number.isFinite(Number(x.return_index ?? x.value)));
   if (!usable.length) return {points:[], min:100, max:100, last:100, change:0};
-  const values = [{date:usable[0].date, value:100}];
-  for (let i = 1; i < usable.length; i++) {
-    const exposure = Math.abs(Number(usable[i - 1].market_value)) || Math.abs(Number(usable[i].market_value)) || 1;
-    const dailyReturn = Math.max(-.5, Math.min(.5, (Number(usable[i].value) - Number(usable[i - 1].value)) / exposure));
-    values.push({date:usable[i].date, value:values.at(-1).value * (1 + dailyReturn)});
-  }
+  const values = usable.map(x => ({date:x.date, value:Number(x.return_index ?? x.value)}));
   return {points:values, min:Math.min(...values.map(x=>x.value)), max:Math.max(...values.map(x=>x.value)), last:values.at(-1).value, change:values.at(-1).value - 100};
 }
 
@@ -34,7 +29,7 @@ function chart(points) {
 }
 
 const code = new URLSearchParams(location.search).get("code");
-fetch("../public/data/dashboard.json?v=20260714e", {cache:"no-store"}).then(r => r.json()).then(d => {
+fetch("../public/data/dashboard.json?v=20260715d", {cache:"no-store"}).then(r => r.json()).then(d => {
   const p = d.players[code];
   if (!p) { document.querySelector("#player").textContent = "找不到選手資料，請由排行榜重新選擇。"; return; }
   const t = p.today, f = p.five_days;
