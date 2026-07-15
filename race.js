@@ -1,6 +1,7 @@
 const esc = v => String(v ?? "").replace(/[&<>\"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
 const status = v => v === "active" ? "仍在場上" : v === "retired_or_degraded" ? "已降級" : "觀察中";
 let players = [], details = {}, tab = "all", sortMode = "rank";
+let consensus = {};
 
 function normalizedCurve(points = []) {
   const usable = points.filter(x => Number.isFinite(Number(x.return_index ?? x.value)));
@@ -44,6 +45,16 @@ function sortPlayers(list) {
   return list;
 }
 
+function consensusSection(title, rows, tone, emptyText) {
+  return `<section class="consensus-card ${tone}"><p>${title}</p>${rows?.length ? `<div class="consensus-list">${rows.slice(0, 6).map(x => `<div><b>${esc(x.stock_code)} ${esc(x.stock_name)}</b><span>${x.supporters} 位選手 · ${Number(x.lots || 0).toLocaleString()} 張 · 約 ${Number(x.amount_wan || 0).toLocaleString()} 萬</span><small>${(x.aliases || []).map(esc).join("、")}</small></div>`).join("")}</div>` : `<div class="consensus-empty">${emptyText}</div>`}</section>`;
+}
+
+function renderConsensus() {
+  const target = document.querySelector("#consensus");
+  if (!target) return;
+  target.innerHTML = consensusSection("多數選手新建倉", consensus.new_positions, "new", "近期沒有形成共識的新建倉標的") + consensusSection("共同推薦買入", consensus.common_buy, "buy", "目前沒有共同淨買標的") + consensusSection("共同棄養／淨賣出", consensus.common_abandon, "sell", "目前沒有共同淨賣標的");
+}
+
 function render() {
   const shown = sortPlayers(players.filter(p => tab === "all" || p.style === tab));
   document.querySelector("#podium").innerHTML = shown.map(p => {
@@ -67,7 +78,9 @@ document.querySelectorAll("[data-sort]").forEach(b => b.addEventListener("click"
 fetch("./public/data/dashboard.json?v=20260715d", {cache:"no-store"}).then(r => r.json()).then(d => {
   players = d.leaderboard || [];
   details = d.players || {};
+  consensus = d.consensus || {};
   document.querySelector("#asof").textContent = `行情日：${d.as_of} · 分點資料：${d.latest_flow_date}`;
   document.querySelector("#notice").textContent = d.notice;
+  renderConsensus();
   render();
 }).catch(() => document.querySelector("#podium").textContent = "資料暫時無法載入。");
