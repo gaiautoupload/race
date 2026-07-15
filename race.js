@@ -1,6 +1,6 @@
 const esc = v => String(v ?? "").replace(/[&<>\"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
 const status = v => v === "active" ? "仍在場上" : v === "retired_or_degraded" ? "已降級" : "觀察中";
-let players = [], details = {}, tab = "all";
+let players = [], details = {}, tab = "all", sortMode = "rank";
 
 function normalizedCurve(points = []) {
   const usable = points.filter(x => Number.isFinite(Number(x.return_index ?? x.value)));
@@ -22,8 +22,30 @@ function sparkline(points) {
   return `<figure class="mini-chart ${cls}"><figcaption><span>ASSET CURVE · BASE 100</span><b>${c.change > 0 ? "+" : ""}${c.change.toFixed(1)}%</b></figcaption><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-label="選手資產成長縮圖"><line x1="${pad}" y1="${baseY}" x2="${w-pad}" y2="${baseY}"/><polyline points="${line}"/>${extreme("max",c.max,c.values.indexOf(c.max))}${extreme("min",c.min,c.values.indexOf(c.min))}</svg><footer><span>最低 <b>${c.min.toFixed(1)}</b></span><span>目前 <b>${(100+c.change).toFixed(1)}</b></span><span>最高 <b>${c.max.toFixed(1)}</b></span></footer></figure>`;
 }
 
+function curveValues(player) {
+  return normalizedCurve(details[player.player_id]?.equity_curve || []).values;
+}
+
+function recentHighScore(player) {
+  const values = curveValues(player);
+  if (values.length < 2) return -Infinity;
+  const recent = values.slice(-Math.min(12, values.length));
+  const first = recent[0] || 100;
+  const change = (recent.at(-1) - first) / Math.abs(first || 1) * 100;
+  const risingDays = recent.slice(1).filter((value, i) => value >= recent[i]).length / Math.max(1, recent.length - 1) * 20;
+  let runningHigh = recent[0], newHighs = 0;
+  for (const value of recent.slice(1)) { if (value > runningHigh) { runningHigh = value; newHighs++; } }
+  return change + risingDays + newHighs * 2;
+}
+
+function sortPlayers(list) {
+  if (sortMode === "current") return [...list].sort((a, b) => (curveValues(b).at(-1) ?? 100) - (curveValues(a).at(-1) ?? 100));
+  if (sortMode === "high") return [...list].sort((a, b) => recentHighScore(b) - recentHighScore(a));
+  return list;
+}
+
 function render() {
-  const shown = players.filter(p => tab === "all" || p.style === tab);
+  const shown = sortPlayers(players.filter(p => tab === "all" || p.style === tab));
   document.querySelector("#podium").innerHTML = shown.map(p => {
     const curve = details[p.player_id]?.equity_curve || [];
     return `<a class="fighter ${p.style}" href="./player/?code=${encodeURIComponent(p.player_id)}&v=20260715a"><div class="fighter-content"><mark>#${String(p.rank).padStart(2,"0")}</mark><div class="rank-orb">${String(p.rank).padStart(2,"0")}</div><p>${p.style === "long" ? "LONG GAME" : "SPRINT"}</p><h2>${esc(p.alias)}</h2><small>${status(p.health)} · 歷史戰役 ${p.lifetime_trades}</small><dl><div><dt>近90日勝率</dt><dd>${Number(p.recent_win_rate_pct).toFixed(1)}%</dd></div><div><dt>近90日 ROI</dt><dd class="${p.recent_avg_roi_pct > 0 ? "gain" : p.recent_avg_roi_pct < 0 ? "loss" : "flat"}">${p.recent_avg_roi_pct > 0 ? "+" : ""}${Number(p.recent_avg_roi_pct).toFixed(1)}%</dd></div></dl>${sparkline(curve)}<footer><span>${p.style === "long" ? "長線庫存選手" : "短線戰役選手"}</span><b>查看選手檔案 →</b></footer></div></a>`;
@@ -33,6 +55,12 @@ function render() {
 document.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click", () => {
   tab = b.dataset.tab;
   document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x === b));
+  render();
+}));
+
+document.querySelectorAll("[data-sort]").forEach(b => b.addEventListener("click", () => {
+  sortMode = b.dataset.sort;
+  document.querySelectorAll("[data-sort]").forEach(x => x.classList.toggle("on", x === b));
   render();
 }));
 
