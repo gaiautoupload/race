@@ -52,7 +52,7 @@ function consensusSection(title, rows, tone, emptyText) {
 function renderConsensus() {
   const target = document.querySelector("#consensus");
   if (!target) return;
-  target.innerHTML = consensusSection("多數選手新建倉", consensus.new_positions, "new", "近期沒有形成共識的新建倉標的") + consensusSection("共同推薦買入", consensus.common_buy, "buy", "目前沒有共同淨買標的") + consensusSection("共同棄養／淨賣出", consensus.common_abandon, "sell", "目前沒有共同淨賣標的");
+  target.innerHTML = consensusSection("多數選手新建倉", consensus.new_positions, "new", "近期沒有形成共識的新建倉標的") + consensusSection("共同推薦買入", consensus.common_buy, "buy", "目前沒有共同淨買標的") + consensusSection("共同棄養／淨賣出", consensus.common_abandon, "sell", "目前沒有共同淨賣標的") + consensusSection("多空分歧／大量換手", consensus.contested, "contested", "目前沒有明顯多空分歧標的");
 }
 
 function render() {
