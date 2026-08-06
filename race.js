@@ -75,7 +75,7 @@ document.querySelectorAll("[data-sort]").forEach(b => b.addEventListener("click"
   render();
 }));
 
-fetch("./public/data/dashboard.json?v=20260715d", {cache:"no-store"}).then(r => r.json()).then(d => {
+fetch("./public/data/dashboard.json", {cache:"no-store"}).then(r => r.json()).then(d => {
   players = d.leaderboard || [];
   details = d.players || {};
   consensus = d.consensus || {};

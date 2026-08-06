@@ -29,7 +29,7 @@ function chart(points) {
 }
 
 const code = new URLSearchParams(location.search).get("code");
-fetch("../public/data/dashboard.json?v=20260715f", {cache:"no-store"}).then(r => r.json()).then(d => {
+fetch("../public/data/dashboard.json", {cache:"no-store"}).then(r => r.json()).then(d => {
   const p = d.players[code];
   if (!p) { document.querySelector("#player").textContent = "找不到選手資料，請由排行榜重新選擇。"; return; }
   const t = p.today, f = p.five_days;
