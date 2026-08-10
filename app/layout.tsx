@@ -36,6 +36,8 @@ export default function RootLayout({
     <html lang="zh-Hant">
       <head>
         <link rel="stylesheet" href="/race.css" />
+        <link rel="stylesheet" href="/stock-search.css?v=20260810a" />
+        <link rel="stylesheet" href="/flow-change.css?v=20260810a" />
         <link rel="stylesheet" href="/mobile.css" />
       </head>
       <body

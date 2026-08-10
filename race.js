@@ -1,6 +1,6 @@
 const esc = v => String(v ?? "").replace(/[&<>\"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
 const status = v => v === "active" ? "仍在場上" : v === "retired_or_degraded" ? "已降級" : "觀察中";
-let players = [], details = {}, tab = "all", sortMode = "rank";
+let players = [], details = {}, stockLookup = {}, tab = "all", sortMode = "rank";
 let consensus = {};
 
 function normalizedCurve(points = []) {
@@ -55,6 +55,17 @@ function renderConsensus() {
   target.innerHTML = consensusSection("多數選手新建倉", consensus.new_positions, "new", "近期沒有形成共識的新建倉標的") + consensusSection("共同推薦買入", consensus.common_buy, "buy", "目前沒有共同淨買標的") + consensusSection("共同棄養／淨賣出", consensus.common_abandon, "sell", "目前沒有共同淨賣標的") + consensusSection("多空分歧／大量換手", consensus.contested, "contested", "目前沒有明顯多空分歧標的");
 }
 
+function renderStockLookup(query) {
+  const target = document.querySelector("#stock-result");
+  if (!target) return;
+  const key = query.trim().toLowerCase();
+  if (!key) { target.innerHTML = ""; return; }
+  const matches = Object.values(stockLookup).filter(x => `${x.stock_code} ${x.stock_name}`.toLowerCase().includes(key)).slice(0, 8);
+  if (!matches.length) { target.innerHTML = "<p class='lookup-empty'>查無符合的個股；請輸入興櫃代號或名稱。</p>"; return; }
+  const table = (title, rows, tone) => `<section class="lookup-table ${tone}"><h3>${title}</h3><table><thead><tr><th>排名</th><th>RACE 主力</th><th>淨張數</th><th>淨額</th><th>成交均價</th></tr></thead><tbody>${rows.length ? rows.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.alias)}</td><td>${Number(x.lots).toLocaleString()}</td><td>${Number(x.amount_wan).toLocaleString()} 萬</td><td>${Number(x.avg_price).toFixed(2)}</td></tr>`).join("") : "<tr><td colspan='5'>本日無資料</td></tr>"}</tbody></table></section>`;
+  target.innerHTML = matches.map(item => `<article class="stock-result-card"><header><div><small>官方興櫃分點資料 · ${esc(item.stock_code)}</small><h2>${esc(item.stock_name)}</h2></div><dl><div><dt>最新行情</dt><dd>${Number(item.latest_price || 0).toFixed(2)}</dd></div><div><dt>主力買均價</dt><dd>${Number(item.buys_avg_price || 0).toFixed(2)}</dd></div><div><dt>主力賣均價</dt><dd>${Number(item.sells_avg_price || 0).toFixed(2)}</dd></div></dl></header><section class="leaders"><h3>前 10 大主力</h3><ol>${item.leaders.map(x => `<li><b>${esc(x.alias)}</b><span>${Number(x.amount_wan).toLocaleString()} 萬 · ${Number(x.avg_price).toFixed(2)}</span></li>`).join("")}</ol></section>${table("今日前 20 大主力買超", item.buys, "buy")}${table("今日前 20 大主力賣超", item.sells, "sell")}</article>`).join("");
+}
+
 function render() {
   const shown = sortPlayers(players.filter(p => tab === "all" || p.style === tab));
   document.querySelector("#podium").innerHTML = shown.map(p => {
@@ -75,9 +86,12 @@ document.querySelectorAll("[data-sort]").forEach(b => b.addEventListener("click"
   render();
 }));
 
+document.querySelector("#stock-search")?.addEventListener("input", event => renderStockLookup(event.target.value));
+
 fetch("./public/data/dashboard.json", {cache:"no-store"}).then(r => r.json()).then(d => {
   players = d.leaderboard || [];
   details = d.players || {};
+  stockLookup = d.stock_lookup || {};
   consensus = d.consensus || {};
   document.querySelector("#asof").textContent = `行情日：${d.as_of} · 分點資料：${d.latest_flow_date}`;
   document.querySelector("#notice").textContent = d.notice;
