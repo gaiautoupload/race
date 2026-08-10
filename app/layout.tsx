@@ -38,6 +38,8 @@ export default function RootLayout({
         <link rel="stylesheet" href="/race.css" />
         <link rel="stylesheet" href="/stock-search.css?v=20260810a" />
         <link rel="stylesheet" href="/flow-change.css?v=20260810a" />
+        <link rel="stylesheet" href="/stock.css?v=20260810b" />
+        <link rel="stylesheet" href="/stock.css?v=20260810b" />
         <link rel="stylesheet" href="/mobile.css" />
       </head>
       <body
